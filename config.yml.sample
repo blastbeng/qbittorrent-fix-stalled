@@ -1,0 +1,22 @@
+autoremove:
+  client: qbittorrent
+  host: http://localhost:8080
+  username: user
+  password: pass
+  strategies:
+    inactive:
+      categories:
+        - cat1
+        - cat2
+      remove: last_activity > 43200 or last_activity = 0 or last_activity = None or last_activity = Never or create_time > 604800
+      status:
+        - StalledDownload
+        - Error
+      excluded_status:
+        - Queued
+        - Checking
+    errored:
+      remove: create_time > 1
+      status:
+        - Error
+  delete_data: true
