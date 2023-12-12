@@ -25,6 +25,7 @@ COPY main.py .
 COPY utils.py .
 COPY config.py .
 COPY entrypoint.sh .
+COPY custom_autoremove_logger.py /usr/local/lib/python3.9/site-packages/autoremovetorrents/logger.py
 RUN chmod +x entrypoint.sh
 
 CMD ["./entrypoint.sh"]

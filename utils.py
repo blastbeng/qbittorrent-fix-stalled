@@ -60,13 +60,13 @@ def fix_stalled(host, port, username, password, seconds):
         logging.info("--- END fix_stalled END ---")
           
 def log_bottom(torrent):    
-    logging.error("Torrent: %s", torrent.info.name)
-    logging.error("      - hash:        %s", torrent.info.hash)
-    logging.error("      - state:       %s", torrent.info.state)
-    logging.error("      - num_seeds:   %s", torrent.info.num_seeds)
-    logging.error("      - dl_speed:   %s", torrent.info.num_seeds)
-    logging.error("      - time_active: %s", str(torrent.info.time_active))
-    logging.error("      - action: %s", "setting bottom priority")
+    logging.info("Torrent: %s", torrent.info.name)
+    logging.info("      - hash:        %s", torrent.info.hash)
+    logging.info("      - state:       %s", torrent.info.state)
+    logging.info("      - num_seeds:   %s", torrent.info.num_seeds)
+    logging.info("      - dl_speed:   %s", torrent.info.num_seeds)
+    logging.info("      - time_active: %s", str(torrent.info.time_active))
+    logging.info("      - action: %s", "setting bottom priority")
 
 def fix_prio(qbt_client, data, seconds):
     queued_torrent_dict = {}
@@ -110,9 +110,8 @@ def fix_prio(qbt_client, data, seconds):
 
 def autoremovetorrents(view_mode=False, conf_path='./config.yml', task=None, log_path='', debug_mode=False):
     try:
-        lg = logger.Logger.register(__name__)
         logger.Logger.init(log_path, file_debug_log = debug_mode, output_debug_log = debug_mode)
-        lg.setLevel(int(os.environ.get("LOG_LEVEL")))
+        lg = logger.Logger.register(__name__)
         lg.info('Auto Remove Torrents %s' % __version__)
         lg.info('Loading configurations...')
         with open_(conf_path, 'r', encoding='utf-8') as stream:
