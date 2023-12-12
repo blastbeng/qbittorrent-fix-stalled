@@ -42,8 +42,15 @@ def fix_stalled(host, port, username, password, seconds):
         logging.info("Connecting...")
         qbt_client = qbittorrentapi.Client(**conn_info)
 
-        decrease_prio(qbt_client, qbt_client.torrents.info(status_filter="stalled_downloading"), seconds)
-        decrease_prio(qbt_client, qbt_client.torrents.info(status_filter="active"), seconds)
+        torrents=[]
+        for torrent in qbt_client.torrents.info(status_filter="stalled_downloading"):
+            torrents.append(torrent)
+        for torrent in  qbt_client.torrents.info(status_filter="active"):
+            torrents.append(torrent)
+        for torrent in  qbt_client.torrents.info(status_filter="queued"):
+            torrents.append(torrent)
+
+        fix_prio(qbt_client, torrents, seconds)
 
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -61,18 +68,28 @@ def log_bottom(torrent):
     logging.error("      - time_active: %s", str(torrent.info.time_active))
     logging.error("      - action: %s", "setting bottom priority")
 
-def decrease_prio(qbt_client, data, seconds):
+def fix_prio(qbt_client, data, seconds):
+    queued_torrent_dict = {}
+    parsed_torrents_array = []
     for torrent in data:
         if torrent.state == 'stalledDL' and torrent.info.time_active > seconds:
+            if torrent.hash not in parsed_torrents_array:
+                parsed_torrents_array.append(torrent.hash)
             log_bottom(torrent)
             qbt_client.torrents.bottom_priority(torrent_hashes=torrent.hash)
-        elif torrent.state == 'metaDL' and (torrent.info.num_seeds == 0 or torrent.dlspeed == 0) and torrent.info.time_active > seconds:
+        elif torrent.state == 'metaDL' and (torrent.info.num_seeds == 0 or torrent.dlspeed < 100000) and torrent.info.time_active > seconds:
+            if torrent.hash not in parsed_torrents_array:
+                parsed_torrents_array.append(torrent.hash)
             log_bottom(torrent)
             qbt_client.torrents.bottom_priority(torrent_hashes=torrent.hash)
-        elif torrent.state == 'downloading' and (torrent.info.num_seeds == 0 or torrent.dlspeed == 0) and torrent.info.time_active > seconds:
+        elif torrent.state == 'downloading' and (torrent.info.num_seeds == 0 or torrent.dlspeed < 100000) and torrent.info.time_active > seconds:
+            if torrent.hash not in parsed_torrents_array:
+                parsed_torrents_array.append(torrent.hash)
             log_bottom(torrent)
             qbt_client.torrents.bottom_priority(torrent_hashes=torrent.hash)
-        else:
+        elif torrent.info.state == 'queuedDL' and torrent.info.completed != 0 and torrent.info.size != 0 and torrent.info.num_complete != 0:
+            queued_torrent_dict[torrent.info.hash] = (torrent.info.completed / torrent.info.size) * 100      
+        elif torrent.info.state != 'queuedDL':
             logging.info("Torrent: %s", torrent.info.name)
             logging.info("      - hash:        %s", torrent.info.hash)
             logging.info("      - state:       %s", torrent.info.state)
@@ -80,7 +97,16 @@ def decrease_prio(qbt_client, data, seconds):
             logging.info("      - dl_speed:   %s", torrent.info.num_seeds)
             logging.info("      - time_active: %s", str(torrent.info.time_active))
             logging.info("      - action: %s", "skipped")
-
+    if queued_torrent_dict != {} and len(queued_torrent_dict) > 0:
+        torrent_sorted_dict = dict(reversed(sorted(queued_torrent_dict.items(), key=lambda item: item[1])))
+        count = 5
+        if len(torrent_sorted_dict) < count:
+            count = len(torrent_sorted_dict) - 1
+        torrent_final_dict = {A:N for (A,N) in [x for x in torrent_sorted_dict.items()][:count]}
+        for key in torrent_final_dict:
+            if key not in parsed_torrents_array:
+                logging.info("Increasing priority on torrent with hash [ %s ] since its completed percentage is [ %s ]", key, str(torrent_final_dict[key]).split(".")[0])
+                qbt_client.torrents.top_priority(torrent_hashes=key)
 
 def autoremovetorrents(view_mode=False, conf_path='./config.yml', task=None, log_path='', debug_mode=False):
     try:
