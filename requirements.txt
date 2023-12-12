@@ -10,3 +10,4 @@ requests
 qbittorrent-api==2023.6.50
 Flask-APScheduler==1.12.4
 git+https://github.com/Jorman/autoremove-torrents@patch-1
+requests

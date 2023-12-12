@@ -16,6 +16,9 @@ from autoremovetorrents.task import Task
 from autoremovetorrents.version import __version__
 from autoremovetorrents.compatibility.open_ import open_
 
+import requests
+import json
+
 dotenv_path = join(dirname(__file__), '.env')
 load_dotenv(dotenv_path)
 
@@ -80,7 +83,6 @@ def decrease_prio(qbt_client, data, seconds):
 
 
 def autoremovetorrents(view_mode=False, conf_path='./config.yml', task=None, log_path='', debug_mode=False):
-
     try:
         lg = logger.Logger.register(__name__)
         logger.Logger.init(log_path, file_debug_log = debug_mode, output_debug_log = debug_mode)
@@ -99,4 +101,44 @@ def autoremovetorrents(view_mode=False, conf_path='./config.yml', task=None, log
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        lg.error("%s %s %s", exc_type, fname, exc_tb.tb_lineno, exc_info=1)
+        logging.error("%s %s %s", exc_type, fname, exc_tb.tb_lineno, exc_info=1)
+
+def search_all(host, port, token, mode = None):
+    try:
+        logging.info("--- START search_all START ---")
+        payload = None
+        if mode is None:
+            raise Exception("Mode is mandatory.")
+        elif mode == "sonarr":
+            url = "http://" + host + ":" + str(port) + "/api/v3/command"
+            payload = {'name': 'MissingEpisodeSearch', 'monitored': True}
+        elif mode == "radarr":
+            url = "http://" + host + ":" + str(port) + "/api/v3/command"
+            payload = {'name': 'MoviesSearch', 'monitored': True}
+        
+        if payload is None:
+            raise Exception("Payload is mandatory.")
+        else:
+            headers = {'X-Api-key': token}
+            call_api(url, payload, headers)
+    except Exception as e:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        logging.error("%s %s %s", exc_type, fname, exc_tb.tb_lineno, exc_info=1)
+    finally:
+        logging.info("--- END search_all END ---")
+
+def call_api(url, payload, headers):
+    try:
+        response = requests.get(url, params=json.dumps(payload), headers=headers)
+        if response.status_code == 200:
+            logging.info("Calling API:            %s", url)
+            logging.info("Request Payload:        %s", str(payload))
+            logging.info("Response Status Code:   %s", str(response.status_code))
+        else:
+            logging.error("Response Status Code:   %s:", str(response.status_code))
+            logging.error("Response Reason:        %s:", response.reason)
+    except Exception as e:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        logging.error("%s %s %s", exc_type, fname, exc_tb.tb_lineno, exc_info=1)
