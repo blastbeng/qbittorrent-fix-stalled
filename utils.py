@@ -103,13 +103,13 @@ def autoremovetorrents(view_mode=False, conf_path='./config.yml', task=None, log
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         logging.error("%s %s %s", exc_type, fname, exc_tb.tb_lineno, exc_info=1)
 
-def search_all(host, port, token, mode = None):
+def search_all(host, port, token, mode = ""):
     try:
-        logging.info("--- START search_all START ---")
+        logging.info("--- START search_all %s START ---", mode)
         payload = None
-        if mode is None:
+        if mode == "":
             raise Exception("Mode is mandatory.")
-        elif mode == "sonarr":
+        if mode == "sonarr":
             url = "http://" + host + ":" + str(port) + "/api/v3/command"
             payload = {'name': 'MissingEpisodeSearch', 'monitored': True}
         elif mode == "radarr":
@@ -126,7 +126,7 @@ def search_all(host, port, token, mode = None):
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         logging.error("%s %s %s", exc_type, fname, exc_tb.tb_lineno, exc_info=1)
     finally:
-        logging.info("--- END search_all END ---")
+        logging.info("--- START search_all %s END ---", mode)
 
 def call_api(url, payload, headers):
     try:
