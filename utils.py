@@ -87,7 +87,8 @@ def fix_prio(qbt_client, data, seconds):
                 parsed_torrents_array.append(torrent.hash)
             log_bottom(torrent)
             qbt_client.torrents.bottom_priority(torrent_hashes=torrent.hash)
-        elif torrent.state == 'queuedDL' and torrent.info.completed != 0 and torrent.info.size != 0 and torrent.info.num_complete != 0:
+        #elif torrent.state == 'queuedDL' and torrent.info.completed != 0 and torrent.info.size != 0 and torrent.info.num_complete != 0:
+        elif torrent.state == 'queuedDL':
             queued_torrent_dict[torrent.info.hash] = (torrent.info.completed / torrent.info.size) * 100      
         elif torrent.state != 'queuedDL':
             logging.info("Torrent: %s", torrent.info.name)
@@ -99,7 +100,7 @@ def fix_prio(qbt_client, data, seconds):
             logging.info("      - action: %s", "skipped")
     if queued_torrent_dict != {} and len(queued_torrent_dict) > 0:
         torrent_sorted_dict = dict(reversed(sorted(queued_torrent_dict.items(), key=lambda item: item[1])))
-        count = 5
+        count = int(qbt_client.application.preferences.max_active_downloads) if qbt_client.application.preferences.queueing_enabled else 5
         if len(torrent_sorted_dict) < count:
             count = len(torrent_sorted_dict) - 1
         torrent_final_dict = {A:N for (A,N) in [x for x in torrent_sorted_dict.items()][:count]}
