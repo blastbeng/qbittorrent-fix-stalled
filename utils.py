@@ -87,12 +87,12 @@ def fix_prio(qbt_client, data, seconds):
                 parsed_torrents_array.append(torrent.hash)
             log_bottom(torrent)
             qbt_client.torrents.bottom_priority(torrent_hashes=torrent.hash)
-        elif torrent.info.state == 'queuedDL' and torrent.info.completed != 0 and torrent.info.size != 0 and torrent.info.num_complete != 0:
+        elif torrent.state == 'queuedDL' and torrent.info.completed != 0 and torrent.info.size != 0 and torrent.info.num_complete != 0:
             queued_torrent_dict[torrent.info.hash] = (torrent.info.completed / torrent.info.size) * 100      
-        elif torrent.info.state != 'queuedDL':
+        elif torrent.state != 'queuedDL':
             logging.info("Torrent: %s", torrent.info.name)
             logging.info("      - hash:        %s", torrent.info.hash)
-            logging.info("      - state:       %s", torrent.info.state)
+            logging.info("      - state:       %s", torrent.state)
             logging.info("      - num_seeds:   %s", torrent.info.num_seeds)
             logging.info("      - dl_speed:   %s", torrent.info.num_seeds)
             logging.info("      - time_active: %s", str(torrent.info.time_active))
