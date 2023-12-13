@@ -39,7 +39,7 @@ def fix_stalled(host, port, username, password, seconds):
             username=username,
             password=password,
         )
-        logging.info("Connecting...")
+        
         qbt_client = qbittorrentapi.Client(**conn_info)
 
         torrents=[]
@@ -59,14 +59,17 @@ def fix_stalled(host, port, username, password, seconds):
     finally:
         logging.info("--- END fix_stalled END ---")
           
-def log_bottom(torrent):    
-    logging.info("Torrent: %s", torrent.info.name)
-    logging.info("      - hash:        %s", torrent.info.hash)
-    logging.info("      - state:       %s", torrent.info.state)
-    logging.info("      - num_seeds:   %s", torrent.info.num_seeds)
-    logging.info("      - dl_speed:   %s", torrent.info.num_seeds)
-    logging.info("      - time_active: %s", str(torrent.info.time_active))
-    logging.info("      - action: %s", "setting bottom priority")
+def log_prio(torrent, action):    
+    logging.debug("Torrent: %s", torrent.info.name)
+    logging.debug("      - hash:           %s", torrent.info.hash)
+    logging.debug("      - state:          %s", torrent.state)
+    logging.debug("      - num_seeds:      %s", torrent.info.num_seeds)
+    logging.debug("      - num_complete:   %s", str(torrent.info.num_complete))
+    logging.debug("      - dl_speed:       %s", torrent.info.num_seeds)
+    logging.debug("      - time_active:    %s", str(torrent.info.time_active))
+    logging.debug("      - completed:      %s", 0 if hasattr(torrent.info, 'completed') and torrent.info.completed != 0 else str(torrent.info.completed))
+    logging.debug("      - size:           %s", str(torrent.info.size))
+    logging.debug("      - action: %s", action)
 
 def fix_prio(qbt_client, data, seconds):
     queued_torrent_dict = {}
@@ -75,29 +78,23 @@ def fix_prio(qbt_client, data, seconds):
         if torrent.state == 'stalledDL' and torrent.info.time_active > seconds:
             if torrent.hash not in parsed_torrents_array:
                 parsed_torrents_array.append(torrent.hash)
-            log_bottom(torrent)
+            log_prio(torrent, "setting bottom priority")
             qbt_client.torrents.bottom_priority(torrent_hashes=torrent.hash)
         elif torrent.state == 'metaDL' and (torrent.info.num_seeds == 0 or torrent.dlspeed < 100000) and torrent.info.time_active > seconds:
             if torrent.hash not in parsed_torrents_array:
                 parsed_torrents_array.append(torrent.hash)
-            log_bottom(torrent)
+            log_prio(torrent, "setting bottom priority")
             qbt_client.torrents.bottom_priority(torrent_hashes=torrent.hash)
         elif torrent.state == 'downloading' and (torrent.info.num_seeds == 0 or torrent.dlspeed < 100000) and torrent.info.time_active > seconds:
             if torrent.hash not in parsed_torrents_array:
                 parsed_torrents_array.append(torrent.hash)
-            log_bottom(torrent)
+            log_prio(torrent, "setting bottom priority")
             qbt_client.torrents.bottom_priority(torrent_hashes=torrent.hash)
-        #elif torrent.state == 'queuedDL' and torrent.info.completed != 0 and torrent.info.size != 0 and torrent.info.num_complete != 0:
-        elif torrent.state == 'queuedDL':
+        elif torrent.state == 'queuedDL' and hasattr(torrent.info, 'completed') and torrent.info.completed != 0 and torrent.info.size != 0 and torrent.info.num_complete != 0:
+            log_prio(torrent, "adding to top priority queue calculation")
             queued_torrent_dict[torrent.info.hash] = (torrent.info.completed / torrent.info.size) * 100      
-        elif torrent.state != 'queuedDL':
-            logging.info("Torrent: %s", torrent.info.name)
-            logging.info("      - hash:        %s", torrent.info.hash)
-            logging.info("      - state:       %s", torrent.state)
-            logging.info("      - num_seeds:   %s", torrent.info.num_seeds)
-            logging.info("      - dl_speed:   %s", torrent.info.num_seeds)
-            logging.info("      - time_active: %s", str(torrent.info.time_active))
-            logging.info("      - action: %s", "skipped")
+        else:
+            log_prio(torrent, "skipped")
     if queued_torrent_dict != {} and len(queued_torrent_dict) > 0:
         torrent_sorted_dict = dict(reversed(sorted(queued_torrent_dict.items(), key=lambda item: item[1])))
         count = int(qbt_client.application.preferences.max_active_downloads) if qbt_client.application.preferences.queueing_enabled else 5
