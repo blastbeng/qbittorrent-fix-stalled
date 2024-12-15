@@ -42,15 +42,27 @@ def fix_stalled(host, port, username, password, seconds):
         
         qbt_client = qbittorrentapi.Client(**conn_info)
 
+
         torrents=[]
-        for torrent in qbt_client.torrents.info(status_filter="stalled_downloading"):
-            torrents.append(torrent)
         for torrent in  qbt_client.torrents.info(status_filter="active"):
+            torrents.append(torrent)
+
+        if len(torrents) == 0:
+            torrents_paused=[]        
+            for torrent in qbt_client.torrents.info(status_filter="paused"):
+                torrents_paused.append(torrent)
+            count = int(qbt_client.application.preferences.max_active_downloads)
+            if len(torrents_paused) < int(qbt_client.application.preferences.max_active_downloads):
+                count = len(torrents_paused) - 1
+            for i in range(0, count):
+                qbt_client.torrents.resume(torrent_hashes=torrents_paused[i].hash)
+
+        for torrent in qbt_client.torrents.info(status_filter="stalled_downloading"):
             torrents.append(torrent)
         for torrent in  qbt_client.torrents.info(status_filter="queued"):
             torrents.append(torrent)
 
-        fix_prio(qbt_client, torrents, seconds)
+        status = fix_prio(qbt_client, torrents, seconds)
 
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -60,7 +72,8 @@ def fix_stalled(host, port, username, password, seconds):
         logging.info("--- END fix_stalled END ---")
           
 def log_prio(torrent, action):    
-    logging.debug("Torrent: %s", torrent.info.name)
+    #logging.debug("Torrent: %s", torrent.info.name)
+    logging.debug("Torrent: ")
     logging.debug("      - hash:           %s", torrent.info.hash)
     logging.debug("      - state:          %s", torrent.state)
     logging.debug("      - num_seeds:      %s", torrent.info.num_seeds)
